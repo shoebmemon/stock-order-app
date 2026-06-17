@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#126a72">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Stock Orders">
+    <title>Shop Stock Order App</title>
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" href="icon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="styles.css?v=8">
+  </head>
+  <body>
+    <header class="app-header">
+      <div>
+        <p class="eyebrow">Shop stock manager</p>
+        <h1>Stock orders, supplier-wise</h1>
+      </div>
+    </header>
+
+    <nav class="page-tabs" aria-label="App pages">
+      <button class="tab-button active" type="button" data-page-target="orderPage">Order List</button>
+      <button class="tab-button" type="button" data-page-target="stockPage">Stock Details</button>
+      <button class="tab-button" type="button" data-page-target="supplierPage">Supplier Details</button>
+      <button class="tab-button" type="button" data-page-target="dataPage">Data</button>
+    </nav>
+
+    <main class="app-shell">
+      <section id="orderPage" class="page active" aria-labelledby="orderTitle">
+        <div class="panel order-panel">
+          <div class="section-heading">
+            <div>
+              <h2 id="orderTitle">Make Order List</h2>
+              <p>Select supplier, item, and quantity.</p>
+            </div>
+          </div>
+
+          <form id="orderForm" class="compact-form">
+            <label>
+              Supplier
+              <select id="orderSupplier" required></select>
+            </label>
+            <label>
+              Stock item
+              <select id="orderItem" required></select>
+            </label>
+            <label>
+              Quantity to order
+              <input id="orderQty" type="number" min="1" step="1" value="1" required>
+            </label>
+            <label>
+              Note
+              <input id="orderNote" placeholder="Optional">
+            </label>
+            <button class="primary" type="submit">Add To Order</button>
+          </form>
+
+          <div id="orderList" class="order-list"></div>
+
+          <div class="order-actions sticky-actions">
+            <button id="printPdfBtn" class="primary" type="button">Show PDF Preview</button>
+            <button id="sharePdfBtn" class="secondary" type="button">Share PDF</button>
+            <button id="emailBtn" class="secondary" type="button">Email Supplier</button>
+          </div>
+          <div id="pdfPreview" class="pdf-preview" hidden>
+            <div class="pdf-preview-head">
+              <strong>PDF Preview</strong>
+              <a id="pdfDownloadLink" class="secondary download-link" href="#" download="order-list.pdf">Download PDF File</a>
+            </div>
+            <iframe id="pdfFrame" title="Order PDF preview"></iframe>
+          </div>
+        </div>
+      </section>
+
+      <section id="stockPage" class="page" aria-labelledby="inventoryTitle" hidden>
+      <div class="panel inventory-panel">
+        <div class="section-heading">
+          <div>
+            <h2 id="inventoryTitle">Stock Details</h2>
+            <p>Add items once, then pick them later when you need to order.</p>
+          </div>
+          <button id="resetDemoBtn" class="secondary danger-soft" type="button">Reset Sample</button>
+        </div>
+
+        <form id="stockForm" class="form-grid">
+          <label>
+            Item name
+            <input id="itemName" required placeholder="e.g. Basmati Rice 5kg">
+          </label>
+          <label>
+            Category
+            <input id="itemCategory" placeholder="e.g. Grocery">
+          </label>
+          <label>
+            Supplier
+            <select id="itemSupplier" required></select>
+          </label>
+          <label>
+            Unit
+            <input id="itemUnit" placeholder="pcs, packs, bags, kg" value="pcs" required>
+          </label>
+          <button class="primary full-row" type="submit">Save Stock Item</button>
+        </form>
+
+        <div class="toolbar">
+          <input id="stockSearch" placeholder="Search stock items">
+          <select id="supplierFilter" aria-label="Filter by supplier"></select>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>Supplier</th>
+                <th>Unit</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="stockTable"></tbody>
+          </table>
+        </div>
+      </div>
+      </section>
+
+      <section id="supplierPage" class="page" aria-labelledby="supplierTitle" hidden>
+        <div class="panel supplier-panel">
+          <div class="section-heading">
+            <div>
+              <h2 id="supplierTitle">Supplier Details</h2>
+              <p>Keep supplier email and phone details here.</p>
+            </div>
+          </div>
+          <form id="supplierForm" class="form-grid supplier-form">
+            <label>
+              Supplier name
+              <input id="supplierName" required placeholder="e.g. Sunrise Traders">
+            </label>
+            <label>
+              Email
+              <input id="supplierEmail" type="email" placeholder="orders@example.com">
+            </label>
+            <label>
+              Phone
+              <input id="supplierPhone" placeholder="+91 ...">
+            </label>
+            <button class="primary full-row" type="submit">Add Supplier</button>
+          </form>
+          <div id="supplierList" class="supplier-list"></div>
+        </div>
+      </section>
+
+      <section id="dataPage" class="page" aria-labelledby="dataTitle" hidden>
+        <div class="panel data-panel">
+          <div class="section-heading">
+            <div>
+              <h2 id="dataTitle">Import / Export</h2>
+              <p>Use these only when backing up or moving data.</p>
+            </div>
+          </div>
+          <div class="data-actions">
+            <button class="secondary small-action" id="exportCsvBtn" type="button">Export CSV</button>
+            <button class="secondary small-action" id="exportExcelBtn" type="button">Export Excel</button>
+            <button class="secondary small-action" id="exportDataBtn" type="button">Backup JSON</button>
+            <label class="secondary file-label small-action" for="importDataInput">Import File</label>
+            <input id="importDataInput" type="file" accept=".json,.csv,.xls,text/csv,application/json,application/vnd.ms-excel">
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <section id="printArea" class="print-area" aria-hidden="true"></section>
+
+    <script src="app.js?v=8"></script>
+  </body>
+</html>
