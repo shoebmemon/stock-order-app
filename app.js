@@ -63,7 +63,6 @@ function loadState() {
   }
 }
 
-// Global data states persist methods
 function saveState() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
@@ -78,6 +77,7 @@ function keepSelectValue(select, value) {
   }
 }
 
+// Format logic matching standard shop context formats
 function formatNumber(value) {
   return Number(value || 0).toLocaleString("en-IN");
 }
@@ -211,7 +211,6 @@ function renderSupplierList() {
     .join("");
 }
 
-// Fixed robust mobile autocomplete populator loop
 function handleSearchInput() {
   const query = el.orderItemSearchInput.value.trim().toLowerCase();
   
@@ -337,13 +336,15 @@ el.subTabButtons.forEach((btn) => {
   });
 });
 
-// Autocomplete Dropdown Row Tap Selection
+// Autocomplete Dropdown Row Tap Binding - NOW EXPLICITLY CLOSES ON CLICK
 el.searchSuggestionsBox.addEventListener("click", (event) => {
   const suggestionItem = event.target.closest(".suggestion-item");
   if (!suggestionItem || !suggestionItem.dataset.id) return;
 
   el.orderItemSearchInput.value = suggestionItem.dataset.name;
   el.hiddenOrderItemId.value = suggestionItem.dataset.id;
+  
+  // FIX: Force layout container box to close immediately on item selection
   el.searchSuggestionsBox.style.display = "none";
 });
 
