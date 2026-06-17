@@ -1,4 +1,4 @@
-const STORAGE_KEY = "shop-stock-order-app-v4";
+const STORAGE_KEY = "shop-stock-order-app-v5";
 
 const sampleState = {
   suppliers: [
@@ -31,10 +31,10 @@ const el = {
   supplierFilter: document.querySelector("#supplierFilter"),
   stockSearch: document.querySelector("#stockSearch"),
   recentOrderAlert: document.querySelector("#recentOrderAlert"),
-  addDataDropdownBtn: document.querySelector("#addDataDropdownBtn"),
-  addDataDropdownMenu: document.querySelector("#addDataDropdownMenu"),
   pages: document.querySelectorAll(".page"),
-  tabButtons: document.querySelectorAll(".tab-button")
+  tabButtons: document.querySelectorAll(".tab-button"),
+  subTabButtons: document.querySelectorAll(".sub-tab-button"),
+  subPageViews: document.querySelectorAll(".sub-page-view")
 };
 
 function loadState() {
@@ -57,6 +57,7 @@ function saveState() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
 
+// Global lookup helpers
 function supplierName(id) {
   return state.suppliers.find((supplier) => supplier.id === id)?.name || "No supplier";
 }
@@ -106,17 +107,20 @@ function showPage(pageId) {
     button.setAttribute("aria-current", isActive ? "page" : "false");
   });
 
-  // Track state highlight changes for dropdown trigger highlights
-  const insideMenuButtons = ["stockPage", "supplierPage", "dataPage"];
-  if (insideMenuButtons.includes(pageId)) {
-    el.addDataDropdownBtn.classList.add("active");
-  } else {
-    el.addDataDropdownBtn.classList.remove("active");
-  }
-
   if (location.hash !== `#${pageId}`) {
     history.replaceState(null, "", `#${pageId}`);
   }
+}
+
+// Added logic to shift inner tab panels inside the Add Data page view
+function showSubPage(subPageId) {
+  el.subPageViews.forEach((view) => {
+    view.hidden = view.id !== subPageId;
+  });
+
+  el.subTabButtons.forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.subTarget === subPageId);
+  });
 }
 
 function renderSupplierOptions() {
@@ -299,20 +303,11 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
-// Dropdown interface interaction toggle
-el.addDataDropdownBtn.addEventListener("click", (event) => {
-  event.stopPropagation();
-  el.addDataDropdownMenu.classList.toggle("show");
-});
-
-document.addEventListener("click", () => {
-  el.addDataDropdownMenu.classList.remove("show");
-});
-
-el.addDataDropdownMenu.addEventListener("click", (event) => {
-  const targetBtn = event.target.closest("button[data-page-target]");
-  if (!targetBtn) return;
-  showPage(targetBtn.dataset.pageTarget);
+// Inner tab click handlers
+el.subTabButtons.forEach((btn) => {
+  btn.addEventListener("click", () => {
+    showSubPage(btn.dataset.subTarget);
+  });
 });
 
 el.stockForm.addEventListener("submit", (event) => {
@@ -414,9 +409,8 @@ document.addEventListener("click", (event) => {
     
     const itemsText = buildCleanTextPayload(sId);
     const textMessage = `Hello ${supplier.name},\n\nPlease arrange delivery for the following purchase items:\n\n${itemsText}\n\nThank you.`;
-    
-    // Grabs phone digits, defaulting clean tracking window routing if missing
     const cleanPhone = (supplier.phone || "").replace(/[^0-9]/g, "");
+    
     window.open(`https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(textMessage)}`, "_blank");
   }
 
@@ -427,6 +421,7 @@ document.addEventListener("click", (event) => {
     
     const itemsText = buildCleanTextPayload(sId);
     const emailBody = `Hello ${supplier.name},\n\nPlease process the following order for our shop:\n\n${itemsText}\n\nThank you.`;
+    
     window.location.href = `mailto:${encodeURIComponent(supplier.email || "")}?subject=${encodeURIComponent("Shop Purchase Order Request")}&body=${encodeURIComponent(emailBody)}`;
   }
 });
@@ -452,9 +447,6 @@ document.querySelector("#exportDataBtn").addEventListener("click", () => {
   link.download = "shop-stock-data.json";
   link.click();
 });
-
-document.querySelector("#exportCsvBtn").addEventListener("click", exportCsv);
-document.querySelector("#exportExcelBtn").addEventListener("click", exportExcel);
 
 function initializeApp() {
   renderSupplierOptions();
