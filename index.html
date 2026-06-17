@@ -11,6 +11,44 @@
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="icon" href="icon.svg" type="image/svg+xml">
     <link rel="stylesheet" href="styles.css?v=8">
+    <style>
+      /* Mobile top action menu styles */
+      .action-dropdown-container {
+        position: relative;
+        display: inline-block;
+      }
+      .dropdown-menu {
+        display: none;
+        position: absolute;
+        right: 0;
+        top: 100%;
+        background: #ffffff;
+        min-width: 160px;
+        box-shadow: 0px 8px 16px rgba(0,0,0,0.15);
+        z-index: 100;
+        border-radius: 6px;
+        border: 1px solid var(--line);
+        margin-top: 4px;
+      }
+      .dropdown-menu button {
+        color: var(--ink);
+        width: 100%;
+        text-align: left;
+        justify-content: flex-start;
+        background: transparent;
+        border: 0;
+        border-radius: 0;
+        padding: 10px 14px;
+        min-height: auto;
+        font-weight: normal;
+      }
+      .dropdown-menu button:hover {
+        background: var(--soft);
+      }
+      .dropdown-menu button:first-child { border-top-left-radius: 6px; border-top-right-radius: 6px; }
+      .dropdown-menu button:last-child { border-bottom-left-radius: 6px; border-bottom-right-radius: 6px; }
+      .show { display: block; }
+    </style>
   </head>
   <body>
     <header class="app-header">
@@ -23,9 +61,15 @@
     <nav class="page-tabs" aria-label="App pages">
       <button class="tab-button active" type="button" data-page-target="orderPage">Order List</button>
       <button class="tab-button" type="button" data-page-target="orderDetailsPage">Order Details</button>
-      <button class="tab-button" type="button" data-page-target="stockPage">Stock Details</button>
-      <button class="tab-button" type="button" data-page-target="supplierPage">Supplier Details</button>
-      <button class="tab-button" type="button" data-page-target="dataPage">Data</button>
+      
+      <div class="action-dropdown-container">
+        <button id="addDataDropdownBtn" class="tab-button" type="button" style="background: #eef6f4; color: var(--primary);">Add Data ▾</button>
+        <div id="addDataDropdownMenu" class="dropdown-menu">
+          <button type="button" data-page-target="stockPage">Stock Details</button>
+          <button type="button" data-page-target="supplierPage">Supplier Details</button>
+          <button type="button" data-page-target="dataPage">Data</button>
+        </div>
+      </div>
     </nav>
 
     <main class="app-shell">
@@ -141,7 +185,7 @@
             </label>
             <label>
               Phone
-              <input id="supplierPhone" placeholder="+91 ...">
+              <input id="supplierPhone" placeholder="e.g. 9876543210 (include country code if required)">
             </label>
             <button class="primary full-row" type="submit">Add Supplier</button>
           </form>
