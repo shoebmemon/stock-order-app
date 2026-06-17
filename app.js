@@ -27,7 +27,6 @@ const el = {
   supplierList: document.querySelector("#supplierList"),
   orderList: document.querySelector("#orderList"),
   itemSupplier: document.querySelector("#itemSupplier"),
-  orderSupplier: document.querySelector("#orderSupplier"),
   orderItem: document.querySelector("#orderItem"),
   supplierFilter: document.querySelector("#supplierFilter"),
   stockSearch: document.querySelector("#stockSearch"),
@@ -61,6 +60,13 @@ function saveState() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
 
+function currentSupplier() {
+  const selectedItemId = el.orderItem.value;
+  const item = state.stocks.find((stock) => stock.id === selectedItemId);
+  if (!item) return state.suppliers[0] || null;
+  return state.suppliers.find((supplier) => supplier.id === item.supplierId) || null;
+}
+
 function supplierName(id) {
   return state.suppliers.find((supplier) => supplier.id === id)?.name || "No supplier";
 }
@@ -69,10 +75,6 @@ function keepSelectValue(select, value) {
   if ([...select.options].some((option) => option.value === value)) {
     select.value = value;
   }
-}
-
-function currentSupplier() {
-  return state.suppliers.find((supplier) => supplier.id === el.orderSupplier.value);
 }
 
 function formatNumber(value) {
@@ -97,7 +99,7 @@ function render() {
   renderSupplierOptions();
   renderStockTable();
   renderSupplierList();
-  renderOrderItems();
+  renderAllOrderItems();
   renderOrderList();
 }
 
@@ -121,23 +123,19 @@ function showPage(pageId) {
 
 function renderSupplierOptions() {
   const selectedItemSupplier = el.itemSupplier.value;
-  const selectedOrderSupplier = el.orderSupplier.value;
   const selectedFilterSupplier = el.supplierFilter.value;
   const supplierOptions = state.suppliers
     .map((supplier) => `<option value="${supplier.id}">${escapeHtml(supplier.name)}</option>`)
     .join("");
 
   el.itemSupplier.innerHTML = supplierOptions;
-  el.orderSupplier.innerHTML = supplierOptions;
   el.supplierFilter.innerHTML = `<option value="all">All suppliers</option>${supplierOptions}`;
 
   keepSelectValue(el.itemSupplier, selectedItemSupplier);
-  keepSelectValue(el.orderSupplier, selectedOrderSupplier);
   keepSelectValue(el.supplierFilter, selectedFilterSupplier || "all");
 
   if (!state.suppliers.length) {
     el.itemSupplier.innerHTML = `<option value="">Add supplier first</option>`;
-    el.orderSupplier.innerHTML = `<option value="">Add supplier first</option>`;
   }
 }
 
@@ -203,34 +201,62 @@ function renderSupplierList() {
     .join("");
 }
 
-function renderOrderItems() {
-  const supplierId = el.orderSupplier.value || state.suppliers[0]?.id;
-  const supplierStocks = state.stocks.filter((item) => item.supplierId === supplierId);
-
-  el.orderItem.innerHTML = supplierStocks.length
-    ? supplierStocks.map((item) => `<option value="${item.id}">${escapeHtml(item.name)}</option>`).join("")
-    : `<option value="">No items for this supplier</option>`;
-}
-
-function renderOrderList() {
-  const supplierId = el.orderSupplier.value;
-  const supplierOrder = state.order.filter((line) => line.supplierId === supplierId);
-
-  if (!supplierOrder.length) {
-    el.orderList.innerHTML = `<div class="empty">Your order list is empty for this supplier.</div>`;
+function renderAllOrderItems() {
+  if (!state.stocks.length) {
+    el.orderItem.innerHTML = `<option value="">No stock items available. Add some first!</option>`;
     return;
   }
 
-  el.orderList.innerHTML = supplierOrder
-    .map((line) => {
-      const item = state.stocks.find((stock) => stock.id === line.itemId);
+  el.orderItem.innerHTML = state.stocks
+    .map((item) => {
+      const vendorName = supplierName(item.supplierId);
+      return `<option value="${item.id}">${escapeHtml(item.name)} (${escapeHtml(vendorName)})</option>`;
+    })
+    .join("");
+}
+
+function renderOrderList() {
+  if (!state.order.length) {
+    el.orderList.innerHTML = `<div class="empty">Your order list is empty. Add items above!</div>`;
+    return;
+  }
+
+  const ordersBySupplier = {};
+  state.order.forEach((line) => {
+    if (!ordersBySupplier[line.supplierId]) {
+      ordersBySupplier[line.supplierId] = [];
+    }
+    ordersBySupplier[line.supplierId].push(line);
+  });
+
+  el.orderList.innerHTML = Object.keys(ordersBySupplier)
+    .map((supplierId) => {
+      const vendorName = supplierName(supplierId);
+      const lines = ordersBySupplier[supplierId];
+
+      const itemCardsHTML = lines
+        .map((line) => {
+          const item = state.stocks.find((stock) => stock.id === line.itemId);
+          return `
+            <div class="order-card" style="margin-left: 10px; border-left: 3px solid var(--primary); background: #fff;">
+              <div>
+                <strong>${escapeHtml(item?.name || "Deleted item")}</strong>
+                <div class="order-meta">Qty: ${formatNumber(line.quantity)} ${escapeHtml(item?.unit || "")}${line.note ? ` · ${escapeHtml(line.note)}` : ""}</div>
+              </div>
+              <button class="icon-btn danger-soft" type="button" data-action="remove-order" data-id="${line.id}" title="Remove from order">Remove</button>
+            </div>
+          `;
+        })
+        .join("");
+
       return `
-        <div class="order-card">
-          <div>
-            <strong>${escapeHtml(item?.name || "Deleted item")}</strong>
-            <div class="order-meta">Qty: ${formatNumber(line.quantity)} ${escapeHtml(item?.unit || "")}${line.note ? ` · ${escapeHtml(line.note)}` : ""}</div>
+        <div class="supplier-order-group" style="margin-bottom: 20px;">
+          <h3 style="margin: 10px 0; color: var(--primary); font-size: 1rem; border-bottom: 1px dashed var(--line); padding-bottom: 4px;">
+            📦 ${escapeHtml(vendorName)}
+          </h3>
+          <div style="display: grid; gap: 8px;">
+            ${itemCardsHTML}
           </div>
-          <button class="icon-btn danger-soft" type="button" data-action="remove-order" data-id="${line.id}" title="Remove from order">Remove</button>
         </div>
       `;
     })
@@ -709,8 +735,7 @@ el.stockTable.addEventListener("click", (event) => {
     const item = state.stocks.find((stock) => stock.id === id);
     if (!item) return;
     addOrUpdateOrderLine(item, 1);
-    el.orderSupplier.value = item.supplierId;
-    renderOrderItems();
+    renderAllOrderItems();
     el.orderItem.value = item.id;
     showPage("orderPage");
   }
@@ -725,11 +750,6 @@ el.orderList.addEventListener("click", (event) => {
   state.order = state.order.filter((line) => line.id !== button.dataset.id);
   saveState();
   render();
-});
-
-el.orderSupplier.addEventListener("change", () => {
-  renderOrderItems();
-  renderOrderList();
 });
 
 el.stockSearch.addEventListener("input", renderStockTable);
@@ -747,8 +767,9 @@ document.querySelector("#sharePdfBtn").addEventListener("click", shareOrderPdf);
 
 document.querySelector("#emailBtn").addEventListener("click", () => {
   const supplier = currentSupplier();
-  const lines = state.order.filter((line) => line.supplierId === supplier?.id);
-  if (!supplier || !lines.length) return;
+  if (!supplier) return;
+  const lines = state.order.filter((line) => line.supplierId === supplier.id);
+  if (!lines.length) return;
 
   const subject = encodeURIComponent(`Order list - ${supplier.name}`);
   const body = buildEmailBody();
@@ -767,7 +788,6 @@ document.querySelector("#exportDataBtn").addEventListener("click", () => {
 });
 
 document.querySelector("#exportCsvBtn").addEventListener("click", exportCsv);
-
 document.querySelector("#exportExcelBtn").addEventListener("click", exportExcel);
 
 document.querySelector("#importDataInput").addEventListener("change", (event) => {
@@ -809,7 +829,18 @@ if ("serviceWorker" in navigator) {
   });
 }
 
-render();
+function initializeApp() {
+  renderSupplierOptions();
+  if (state.suppliers.length > 0 && !el.itemSupplier.value) {
+    el.itemSupplier.value = state.suppliers[0].id;
+  }
+  renderStockTable();
+  renderSupplierList();
+  renderAllOrderItems();
+  renderOrderList();
+}
+
+initializeApp();
 
 if (location.hash) {
   const pageId = location.hash.slice(1);
