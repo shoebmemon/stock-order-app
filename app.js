@@ -1,4 +1,4 @@
-const STORAGE_KEY = "shop-stock-order-app-v8";
+const STORAGE_KEY = "shop-stock-order-app-v9";
 
 // Safe dynamic mobile ID generation tool
 function generateUUID() {
@@ -63,6 +63,7 @@ function loadState() {
   }
 }
 
+// Global data states persist methods
 function saveState() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
@@ -77,7 +78,6 @@ function keepSelectValue(select, value) {
   }
 }
 
-// Fixed locale display tracking context format details
 function formatNumber(value) {
   return Number(value || 0).toLocaleString("en-IN");
 }
@@ -211,7 +211,7 @@ function renderSupplierList() {
     .join("");
 }
 
-// Search-as-you-type filter handler for massive stock lists
+// Fixed robust mobile autocomplete populator loop
 function handleSearchInput() {
   const query = el.orderItemSearchInput.value.trim().toLowerCase();
   
@@ -226,7 +226,7 @@ function handleSearchInput() {
   );
 
   if (!matches.length) {
-    el.searchSuggestionsBox.innerHTML = `<div class="suggestion-item subtle">No items match your search.</div>`;
+    el.searchSuggestionsBox.innerHTML = `<div class="suggestion-item" style="color:var(--muted); cursor:default;">No items match your search.</div>`;
     el.searchSuggestionsBox.style.display = "block";
     return;
   }
@@ -299,7 +299,7 @@ function renderBifurcatedOrders() {
     .join("");
 }
 
-function addOrUpdateOrderLine(item, quantity, note = "") {
+function addOrUpdateOrderLine(item, quantity) {
   const existing = state.order.find((line) => line.itemId === item.id);
   if (existing) {
     existing.quantity = Number(existing.quantity) + Number(quantity);
@@ -331,14 +331,13 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
-// Inner Tab Selector Controls
 el.subTabButtons.forEach((btn) => {
   btn.addEventListener("click", () => {
     showSubPage(btn.dataset.subTarget);
   });
 });
 
-// Autocomplete Dropdown Row Tap Binding
+// Autocomplete Dropdown Row Tap Selection
 el.searchSuggestionsBox.addEventListener("click", (event) => {
   const suggestionItem = event.target.closest(".suggestion-item");
   if (!suggestionItem || !suggestionItem.dataset.id) return;
@@ -348,7 +347,6 @@ el.searchSuggestionsBox.addEventListener("click", (event) => {
   el.searchSuggestionsBox.style.display = "none";
 });
 
-// Hide autocomplete box if user clicks away
 document.addEventListener("click", (event) => {
   if (!event.target.closest(".search-suggest-container")) {
     el.searchSuggestionsBox.style.display = "none";
@@ -399,7 +397,7 @@ el.orderForm.addEventListener("submit", (event) => {
 
   const qty = document.querySelector("#orderQty").value;
 
-  addOrUpdateOrderLine(item, qty, "");
+  addOrUpdateOrderLine(item, qty);
   saveState();
 
   el.orderForm.reset();
@@ -423,7 +421,6 @@ el.stockTable.addEventListener("click", (event) => {
   const action = button.dataset.action;
 
   if (action === "delete-stock") {
-    // Added safety guard confirmation check
     if (confirm("Are you sure you want to permanently delete this stock item? This will remove it from active logs.")) {
       state.stocks = state.stocks.filter((item) => item.id !== id);
       state.order = state.order.filter((line) => line.itemId !== id);
@@ -436,7 +433,7 @@ el.stockTable.addEventListener("click", (event) => {
   if (action === "quick-order") {
     const item = state.stocks.find((stock) => stock.id === id);
     if (!item) return;
-    addOrUpdateOrderLine(item, 1, "");
+    addOrUpdateOrderLine(item, 1);
     
     el.orderItemSearchInput.value = item.name;
     el.hiddenOrderItemId.value = item.id;
@@ -460,7 +457,6 @@ document.addEventListener("click", (event) => {
   const action = button.dataset.action;
 
   if (action === "remove-line") {
-    // Added safety guard confirmation check
     if (confirm("Remove this item line from this supplier's active purchase order list?")) {
       state.order = state.order.filter((line) => line.id !== button.dataset.id);
       saveState();
