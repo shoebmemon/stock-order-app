@@ -1,4 +1,4 @@
-const STORAGE_KEY = "shop-stock-order-app-v1";
+const STORAGE_KEY = "shop-stock-order-app-v2";
 
 const sampleState = {
   suppliers: [
@@ -7,12 +7,13 @@ const sampleState = {
     { id: crypto.randomUUID(), name: "Fresh Pack Supplies", email: "", phone: "+91 90000 11122" }
   ],
   stocks: [],
-  order: []
+  order: [],
+  dispatchOrder: [] // Separate storage list for Direct Dispatch tab
 };
 
 sampleState.stocks = [
   { id: crypto.randomUUID(), name: "Basmati Rice 5kg", category: "Grocery", supplierId: sampleState.suppliers[0].id, unit: "bags" },
-  { id: crypto.randomUUID(), name: "Toor Dal 1kg", category: "Grocery", supplierId: sampleState.suppliers[0].id, unit: "packs" },
+  { id: crypto.randomUUIDUUID(), name: "Toor Dal 1kg", category: "Grocery", supplierId: sampleState.suppliers[0].id, unit: "packs" },
   { id: crypto.randomUUID(), name: "Dishwash Liquid 500ml", category: "Cleaning", supplierId: sampleState.suppliers[1].id, unit: "bottles" },
   { id: crypto.randomUUID(), name: "Paper Carry Bags Medium", category: "Packing", supplierId: sampleState.suppliers[2].id, unit: "bundles" }
 ];
@@ -23,22 +24,31 @@ const el = {
   stockForm: document.querySelector("#stockForm"),
   supplierForm: document.querySelector("#supplierForm"),
   orderForm: document.querySelector("#orderForm"),
+  dispatchForm: document.querySelector("#dispatchForm"),
   stockTable: document.querySelector("#stockTable"),
   supplierList: document.querySelector("#supplierList"),
   orderList: document.querySelector("#orderList"),
+  dispatchOrderList: document.querySelector("#dispatchOrderList"),
   itemSupplier: document.querySelector("#itemSupplier"),
   orderItem: document.querySelector("#orderItem"),
+  dispatchOrderItem: document.querySelector("#dispatchOrderItem"),
   supplierFilter: document.querySelector("#supplierFilter"),
   stockSearch: document.querySelector("#stockSearch"),
   printArea: document.querySelector("#printArea"),
   pdfPreview: document.querySelector("#pdfPreview"),
   pdfFrame: document.querySelector("#pdfFrame"),
   pdfDownloadLink: document.querySelector("#pdfDownloadLink"),
+  dispatchPdfPreview: document.querySelector("#dispatchPdfPreview"),
+  dispatchPdfFrame: document.querySelector("#dispatchPdfFrame"),
+  dispatchPdfDownloadLink: document.querySelector("#dispatchPdfDownloadLink"),
+  recentOrderAlert: document.querySelector("#recentOrderAlert"),
+  dispatchRecentOrderAlert: document.querySelector("#dispatchRecentOrderAlert"),
   pages: document.querySelectorAll(".page"),
   tabButtons: document.querySelectorAll(".tab-button")
 };
 
 let activePdfUrl = "";
+let dispatchActivePdfUrl = "";
 
 function loadState() {
   const saved = localStorage.getItem(STORAGE_KEY);
@@ -49,7 +59,8 @@ function loadState() {
     return {
       suppliers: parsed.suppliers || [],
       stocks: (parsed.stocks || []).map(normalizeStockItem),
-      order: parsed.order || []
+      order: parsed.order || [],
+      dispatchOrder: parsed.dispatchOrder || []
     };
   } catch {
     return structuredClone(sampleState);
@@ -60,8 +71,8 @@ function saveState() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
 
-function currentSupplier() {
-  const selectedItemId = el.orderItem.value;
+function currentSupplier(isDispatch = false) {
+  const selectedItemId = isDispatch ? el.dispatchOrderItem.value : el.orderItem.value;
   const item = state.stocks.find((stock) => stock.id === selectedItemId);
   if (!item) return state.suppliers[0] || null;
   return state.suppliers.find((supplier) => supplier.id === item.supplierId) || null;
@@ -72,7 +83,7 @@ function supplierName(id) {
 }
 
 function keepSelectValue(select, value) {
-  if ([...select.options].some((option) => option.value === value)) {
+  if (select && [...select.options].some((option) => option.value === value)) {
     select.value = value;
   }
 }
@@ -100,7 +111,8 @@ function render() {
   renderStockTable();
   renderSupplierList();
   renderAllOrderItems();
-  renderOrderList();
+  renderOrderList(state.order, el.orderList, "remove-order");
+  renderOrderList(state.dispatchOrder, el.dispatchOrderList, "remove-dispatch");
 }
 
 function showPage(pageId) {
@@ -203,33 +215,38 @@ function renderSupplierList() {
 
 function renderAllOrderItems() {
   if (!state.stocks.length) {
-    el.orderItem.innerHTML = `<option value="">No stock items available. Add some first!</option>`;
+    const backupHtml = `<option value="">No stock items available. Add some first!</option>`;
+    el.orderItem.innerHTML = backupHtml;
+    el.dispatchOrderItem.innerHTML = backupHtml;
     return;
   }
 
-  el.orderItem.innerHTML = state.stocks
+  const itemsHtml = state.stocks
     .map((item) => {
       const vendorName = supplierName(item.supplierId);
       return `<option value="${item.id}">${escapeHtml(item.name)} (${escapeHtml(vendorName)})</option>`;
     })
     .join("");
+
+  el.orderItem.innerHTML = itemsHtml;
+  el.dispatchOrderItem.innerHTML = itemsHtml;
 }
 
-function renderOrderList() {
-  if (!state.order.length) {
-    el.orderList.innerHTML = `<div class="empty">Your order list is empty. Add items above!</div>`;
+function renderOrderList(targetOrderArray, targetElement, actionString) {
+  if (!targetOrderArray.length) {
+    targetElement.innerHTML = `<div class="empty">Your order list is empty. Add items above!</div>`;
     return;
   }
 
   const ordersBySupplier = {};
-  state.order.forEach((line) => {
+  targetOrderArray.forEach((line) => {
     if (!ordersBySupplier[line.supplierId]) {
       ordersBySupplier[line.supplierId] = [];
     }
     ordersBySupplier[line.supplierId].push(line);
   });
 
-  el.orderList.innerHTML = Object.keys(ordersBySupplier)
+  targetElement.innerHTML = Object.keys(ordersBySupplier)
     .map((supplierId) => {
       const vendorName = supplierName(supplierId);
       const lines = ordersBySupplier[supplierId];
@@ -243,7 +260,7 @@ function renderOrderList() {
                 <strong>${escapeHtml(item?.name || "Deleted item")}</strong>
                 <div class="order-meta">Qty: ${formatNumber(line.quantity)} ${escapeHtml(item?.unit || "")}${line.note ? ` · ${escapeHtml(line.note)}` : ""}</div>
               </div>
-              <button class="icon-btn danger-soft" type="button" data-action="remove-order" data-id="${line.id}" title="Remove from order">Remove</button>
+              <button class="icon-btn danger-soft" type="button" data-action="${actionString}" data-id="${line.id}" title="Remove from order">Remove</button>
             </div>
           `;
         })
@@ -263,13 +280,13 @@ function renderOrderList() {
     .join("");
 }
 
-function addOrUpdateOrderLine(item, quantity, note = "") {
-  const existing = state.order.find((line) => line.itemId === item.id);
+function addOrUpdateOrderLine(targetOrderArray, item, quantity, note = "") {
+  const existing = targetOrderArray.find((line) => line.itemId === item.id);
   if (existing) {
     existing.quantity = Number(existing.quantity) + Number(quantity);
     existing.note = note || existing.note;
   } else {
-    state.order.push({
+    targetOrderArray.push({
       id: crypto.randomUUID(),
       supplierId: item.supplierId,
       itemId: item.id,
@@ -279,9 +296,19 @@ function addOrUpdateOrderLine(item, quantity, note = "") {
   }
 }
 
-function buildPrintableOrder() {
-  const supplier = currentSupplier();
-  const lines = state.order.filter((line) => line.supplierId === supplier?.id);
+function showRecentItemNotification(item, quantity, note, alertContainer) {
+  alertContainer.innerHTML = `
+    <div style="background: var(--ok-bg); color: var(--ok-text); padding: 12px; border-radius: 6px; font-size: 0.9rem; border: 1px solid rgba(36,113,58,0.15)">
+      <strong>✨ Recently Added Detail:</strong> ${escapeHtml(item.name)} · Qty: ${formatNumber(quantity)} ${escapeHtml(item.unit)} ${note ? `(${escapeHtml(note)})` : ""}
+    </div>
+  `;
+  alertContainer.style.display = "block";
+}
+
+function buildPrintableOrder(isDispatch = false) {
+  const supplier = currentSupplier(isDispatch);
+  const sourceArray = isDispatch ? state.dispatchOrder : state.order;
+  const lines = sourceArray.filter((line) => line.supplierId === supplier?.id);
   const today = new Date().toLocaleDateString("en-IN", {
     day: "2-digit",
     month: "short",
@@ -327,9 +354,10 @@ function buildPrintableOrder() {
   `;
 }
 
-function currentOrderLines() {
-  const supplier = currentSupplier();
-  const lines = state.order
+function currentOrderLines(isDispatch = false) {
+  const supplier = currentSupplier(isDispatch);
+  const sourceArray = isDispatch ? state.dispatchOrder : state.order;
+  const lines = sourceArray
     .filter((line) => line.supplierId === supplier?.id)
     .map((line) => ({
       ...line,
@@ -388,8 +416,8 @@ function createOrderPdfBlob(supplier, lines) {
   return createSimplePdf(buildOrderTextLines(supplier, lines));
 }
 
-function showOrderPdfPreview() {
-  const { supplier, lines } = currentOrderLines();
+function showOrderPdfPreview(isDispatch = false) {
+  const { supplier, lines } = currentOrderLines(isDispatch);
   if (!supplier || !lines.length) {
     alert("Please add items to the order list first.");
     return;
@@ -398,52 +426,20 @@ function showOrderPdfPreview() {
   const pdfBlob = createOrderPdfBlob(supplier, lines);
   const pdfUrl = URL.createObjectURL(pdfBlob);
 
-  if (activePdfUrl) {
-    URL.revokeObjectURL(activePdfUrl);
-  }
-
-  activePdfUrl = pdfUrl;
-  el.pdfFrame.src = pdfUrl;
-  el.pdfDownloadLink.href = pdfUrl;
-  el.pdfDownloadLink.download = orderFileName(supplier);
-  el.pdfPreview.hidden = false;
-}
-
-async function shareOrderPdf() {
-  const { supplier, lines } = currentOrderLines();
-  if (!supplier || !lines.length) {
-    alert("Please add items to the order list first.");
-    return;
-  }
-
-  const file = new File([createOrderPdfBlob(supplier, lines)], orderFileName(supplier), {
-    type: "application/pdf"
-  });
-  const shareText = buildOrderShareText(supplier, lines);
-
-  try {
-    if (navigator.canShare?.({ files: [file] })) {
-      await navigator.share({
-        title: `Order list - ${supplier.name}`,
-        text: "Please find the attached order list.",
-        files: [file]
-      });
-      return;
-    }
-
-    if (navigator.share) {
-      await navigator.share({
-        title: `Order list - ${supplier.name}`,
-        text: shareText
-      });
-      return;
-    }
-
-    window.location.href = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
-  } catch (error) {
-    if (error.name !== "AbortError") {
-      alert("Sharing is not available in this browser. Try opening the app in Android Chrome.");
-    }
+  if (isDispatch) {
+    if (dispatchActivePdfUrl) URL.revokeObjectURL(dispatchActivePdfUrl);
+    dispatchActivePdfUrl = pdfUrl;
+    el.dispatchPdfFrame.src = pdfUrl;
+    el.dispatchPdfDownloadLink.href = pdfUrl;
+    el.dispatchPdfDownloadLink.download = orderFileName(supplier);
+    el.dispatchPdfPreview.hidden = false;
+  } else {
+    if (activePdfUrl) URL.revokeObjectURL(activePdfUrl);
+    activePdfUrl = pdfUrl;
+    el.pdfFrame.src = pdfUrl;
+    el.pdfDownloadLink.href = pdfUrl;
+    el.pdfDownloadLink.download = orderFileName(supplier);
+    el.pdfPreview.hidden = false;
   }
 }
 
@@ -646,6 +642,7 @@ function importStockRows(rows) {
   if (!importedStocks.length) throw new Error("No valid stock rows found");
   state.stocks = importedStocks;
   state.order = [];
+  state.dispatchOrder = [];
 }
 
 function parseExcelHtml(text) {
@@ -654,9 +651,10 @@ function parseExcelHtml(text) {
   return tableRows.map((tableRow) => [...tableRow.children].map((cell) => cell.textContent.trim()));
 }
 
-function buildEmailBody() {
-  const supplier = currentSupplier();
-  const lines = state.order.filter((line) => line.supplierId === supplier?.id);
+function buildEmailBody(isDispatch = false) {
+  const supplier = currentSupplier(isDispatch);
+  const sourceArray = isDispatch ? state.dispatchOrder : state.order;
+  const lines = sourceArray.filter((line) => line.supplierId === supplier?.id);
 
   const items = lines.map((line, index) => {
     const item = state.stocks.find((stock) => stock.id === line.itemId);
@@ -679,6 +677,30 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+}
+
+function executeOrderSubmit(event, isDispatch) {
+  event.preventDefault();
+  const selectElement = isDispatch ? el.dispatchOrderItem : el.orderItem;
+  const qtyElement = document.querySelector(isDispatch ? "#dispatchOrderQty" : "#orderQty");
+  const noteElement = document.querySelector(isDispatch ? "#dispatchOrderNote" : "#orderNote");
+  const alertContainer = isDispatch ? el.dispatchRecentOrderAlert : el.recentOrderAlert;
+  const targetArray = isDispatch ? state.dispatchOrder : state.order;
+
+  const item = state.stocks.find((stock) => stock.id === selectElement.value);
+  if (!item) return;
+
+  const qty = qtyElement.value;
+  const noteText = noteElement.value.trim();
+
+  addOrUpdateOrderLine(targetArray, item, qty, noteText);
+  saveState();
+  
+  qtyElement.value = 1;
+  noteElement.value = "";
+  
+  showRecentItemNotification(item, qty, noteText, alertContainer);
+  render();
 }
 
 el.stockForm.addEventListener("submit", (event) => {
@@ -709,16 +731,8 @@ el.supplierForm.addEventListener("submit", (event) => {
   render();
 });
 
-el.orderForm.addEventListener("submit", (event) => {
-  event.preventDefault();
-  const item = state.stocks.find((stock) => stock.id === el.orderItem.value);
-  if (!item) return;
-  addOrUpdateOrderLine(item, document.querySelector("#orderQty").value, document.querySelector("#orderNote").value.trim());
-  saveState();
-  document.querySelector("#orderQty").value = 1;
-  document.querySelector("#orderNote").value = "";
-  render();
-});
+el.orderForm.addEventListener("submit", (e) => executeOrderSubmit(e, false));
+el.dispatchForm.addEventListener("submit", (e) => executeOrderSubmit(e, true));
 
 el.stockTable.addEventListener("click", (event) => {
   const button = event.target.closest("button[data-action]");
@@ -729,14 +743,16 @@ el.stockTable.addEventListener("click", (event) => {
   if (action === "delete-stock") {
     state.stocks = state.stocks.filter((item) => item.id !== id);
     state.order = state.order.filter((line) => line.itemId !== id);
+    state.dispatchOrder = state.dispatchOrder.filter((line) => line.itemId !== id);
   }
 
   if (action === "quick-order") {
     const item = state.stocks.find((stock) => stock.id === id);
     if (!item) return;
-    addOrUpdateOrderLine(item, 1);
+    addOrUpdateOrderLine(state.order, item, 1);
     renderAllOrderItems();
     el.orderItem.value = item.id;
+    showRecentItemNotification(item, 1, "", el.recentOrderAlert);
     showPage("orderPage");
   }
 
@@ -744,12 +760,21 @@ el.stockTable.addEventListener("click", (event) => {
   render();
 });
 
-el.orderList.addEventListener("click", (event) => {
-  const button = event.target.closest("button[data-action='remove-order']");
+document.addEventListener("click", (event) => {
+  const button = event.target.closest("button[data-action]");
   if (!button) return;
-  state.order = state.order.filter((line) => line.id !== button.dataset.id);
-  saveState();
-  render();
+  const action = button.dataset.action;
+
+  if (action === "remove-order") {
+    state.order = state.order.filter((line) => line.id !== button.dataset.id);
+    saveState();
+    render();
+  }
+  if (action === "remove-dispatch") {
+    state.dispatchOrder = state.dispatchOrder.filter((line) => line.id !== button.dataset.id);
+    saveState();
+    render();
+  }
 });
 
 el.stockSearch.addEventListener("input", renderStockTable);
@@ -759,26 +784,30 @@ el.tabButtons.forEach((button) => {
   button.addEventListener("click", () => showPage(button.dataset.pageTarget));
 });
 
-document.querySelector("#printPdfBtn").addEventListener("click", () => {
-  showOrderPdfPreview();
-});
-
-document.querySelector("#sharePdfBtn").addEventListener("click", shareOrderPdf);
+document.querySelector("#printPdfBtn").addEventListener("click", () => showOrderPdfPreview(false));
+document.querySelector("#dispatchPrintPdfBtn").addEventListener("click", () => showOrderPdfPreview(true));
 
 document.querySelector("#emailBtn").addEventListener("click", () => {
-  const supplier = currentSupplier();
+  const supplier = currentSupplier(false);
   if (!supplier) return;
   const lines = state.order.filter((line) => line.supplierId === supplier.id);
   if (!lines.length) return;
+  window.location.href = `mailto:${encodeURIComponent(supplier.email || "")}?subject=${encodeURIComponent(`Order list - ${supplier.name}`)}&body=${buildEmailBody(false)}`;
+});
 
-  const subject = encodeURIComponent(`Order list - ${supplier.name}`);
-  const body = buildEmailBody();
-  window.location.href = `mailto:${encodeURIComponent(supplier.email || "")}?subject=${subject}&body=${body}`;
+document.querySelector("#dispatchEmailBtn").addEventListener("click", () => {
+  const supplier = currentSupplier(true);
+  if (!supplier) return;
+  const lines = state.dispatchOrder.filter((line) => line.supplierId === supplier.id);
+  if (!lines.length) return;
+  window.location.href = `mailto:${encodeURIComponent(supplier.email || "")}?subject=${encodeURIComponent(`Separate Dispatch - ${supplier.name}`)}&body=${buildEmailBody(true)}`;
 });
 
 document.querySelector("#resetDemoBtn").addEventListener("click", () => {
   state = structuredClone(sampleState);
   saveState();
+  el.recentOrderAlert.style.display = "none";
+  el.dispatchRecentOrderAlert.style.display = "none";
   render();
 });
 
@@ -790,45 +819,6 @@ document.querySelector("#exportDataBtn").addEventListener("click", () => {
 document.querySelector("#exportCsvBtn").addEventListener("click", exportCsv);
 document.querySelector("#exportExcelBtn").addEventListener("click", exportExcel);
 
-document.querySelector("#importDataInput").addEventListener("change", (event) => {
-  const file = event.target.files?.[0];
-  if (!file) return;
-
-  const reader = new FileReader();
-  reader.onload = () => {
-    try {
-      const text = String(reader.result || "");
-      const fileName = file.name.toLowerCase();
-
-      if (fileName.endsWith(".json")) {
-        const imported = JSON.parse(text);
-        state = {
-          suppliers: imported.suppliers || [],
-          stocks: (imported.stocks || []).map(normalizeStockItem),
-          order: imported.order || []
-        };
-      } else if (fileName.endsWith(".xls") || text.trim().startsWith("<")) {
-        importStockRows(parseExcelHtml(text));
-      } else {
-        importStockRows(parseCsv(text));
-      }
-
-      saveState();
-      render();
-    } catch {
-      alert("This file could not be imported.");
-    }
-  };
-  reader.readAsText(file);
-  event.target.value = "";
-});
-
-if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./service-worker.js").catch(() => {});
-  });
-}
-
 function initializeApp() {
   renderSupplierOptions();
   if (state.suppliers.length > 0 && !el.itemSupplier.value) {
@@ -837,7 +827,8 @@ function initializeApp() {
   renderStockTable();
   renderSupplierList();
   renderAllOrderItems();
-  renderOrderList();
+  renderOrderList(state.order, el.orderList, "remove-order");
+  renderOrderList(state.dispatchOrder, el.dispatchOrderList, "remove-dispatch");
 }
 
 initializeApp();
