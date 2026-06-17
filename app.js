@@ -1,4 +1,4 @@
-const STORAGE_KEY = "shop-stock-order-app-v7";
+const STORAGE_KEY = "shop-stock-order-app-v8";
 
 // Safe dynamic mobile ID generation tool
 function generateUUID() {
@@ -77,6 +77,7 @@ function keepSelectValue(select, value) {
   }
 }
 
+// Fixed locale display tracking context format details
 function formatNumber(value) {
   return Number(value || 0).toLocaleString("en-IN");
 }
@@ -271,7 +272,7 @@ function renderBifurcatedOrders() {
               <div style="display: flex; justify-content: space-between; align-items: center;">
                 <div>
                   <strong>${escapeHtml(item?.name || "Deleted item")}</strong>
-                  <div class="order-meta">Qty: ${formatNumber(line.quantity)} ${escapeHtml(item?.unit || "")}${line.note ? ` · ${escapeHtml(line.note)}` : ""}</div>
+                  <div class="order-meta">Qty: ${formatNumber(line.quantity)} ${escapeHtml(item?.unit || "")}</div>
                 </div>
                 <button class="icon-btn danger-soft" type="button" data-action="remove-line" data-id="${line.id}">Remove</button>
               </div>
@@ -302,14 +303,13 @@ function addOrUpdateOrderLine(item, quantity, note = "") {
   const existing = state.order.find((line) => line.itemId === item.id);
   if (existing) {
     existing.quantity = Number(existing.quantity) + Number(quantity);
-    existing.note = note || existing.note;
   } else {
     state.order.push({
       id: generateUUID(),
       supplierId: item.supplierId,
       itemId: item.id,
       quantity: Number(quantity),
-      note
+      note: ""
     });
   }
 }
@@ -318,7 +318,7 @@ function buildCleanTextPayload(supplierId) {
   const lines = state.order.filter((line) => line.supplierId === supplierId);
   return lines.map((line, idx) => {
     const item = state.stocks.find((s) => s.id === line.itemId);
-    return `${idx + 1}. ${item?.name || "Item"} - ${line.quantity} ${item?.unit || ""}${line.note ? ` (${line.note})` : ""}`;
+    return `${idx + 1}. ${item?.name || "Item"} - ${line.quantity} ${item?.unit || ""}`;
   }).join("\n");
 }
 
@@ -338,7 +338,7 @@ el.subTabButtons.forEach((btn) => {
   });
 });
 
-// Autocomplete Selection Event
+// Autocomplete Dropdown Row Tap Binding
 el.searchSuggestionsBox.addEventListener("click", (event) => {
   const suggestionItem = event.target.closest(".suggestion-item");
   if (!suggestionItem || !suggestionItem.dataset.id) return;
@@ -348,7 +348,7 @@ el.searchSuggestionsBox.addEventListener("click", (event) => {
   el.searchSuggestionsBox.style.display = "none";
 });
 
-// Hide autocomplete popup if user clicks away
+// Hide autocomplete box if user clicks away
 document.addEventListener("click", (event) => {
   if (!event.target.closest(".search-suggest-container")) {
     el.searchSuggestionsBox.style.display = "none";
@@ -392,19 +392,16 @@ el.orderForm.addEventListener("submit", (event) => {
   const selectedItemId = el.hiddenOrderItemId.value;
   const item = state.stocks.find((stock) => stock.id === selectedItemId);
   
-  // Validation guard if user typed random gibberish without choosing a suggested option
   if (!item || el.orderItemSearchInput.value !== item.name) {
-    alert("Please select a valid item from the search suggestion pop-up menu list.");
+    alert("Please select a valid item from the search suggestion menu popup.");
     return;
   }
 
   const qty = document.querySelector("#orderQty").value;
-  const note = document.querySelector("#orderNote").value.trim();
 
-  addOrUpdateOrderLine(item, qty, note);
+  addOrUpdateOrderLine(item, qty, "");
   saveState();
 
-  // Reset order entry panel smoothly
   el.orderForm.reset();
   el.hiddenOrderItemId.value = "";
   document.querySelector("#orderQty").value = 1;
@@ -426,16 +423,21 @@ el.stockTable.addEventListener("click", (event) => {
   const action = button.dataset.action;
 
   if (action === "delete-stock") {
-    state.stocks = state.stocks.filter((item) => item.id !== id);
-    state.order = state.order.filter((line) => line.itemId !== id);
+    // Added safety guard confirmation check
+    if (confirm("Are you sure you want to permanently delete this stock item? This will remove it from active logs.")) {
+      state.stocks = state.stocks.filter((item) => item.id !== id);
+      state.order = state.order.filter((line) => line.itemId !== id);
+      saveState();
+      render();
+    }
+    return;
   }
 
   if (action === "quick-order") {
     const item = state.stocks.find((stock) => stock.id === id);
     if (!item) return;
-    addOrUpdateOrderLine(item, 1);
+    addOrUpdateOrderLine(item, 1, "");
     
-    // Auto-fill form details directly
     el.orderItemSearchInput.value = item.name;
     el.hiddenOrderItemId.value = item.id;
     
@@ -458,9 +460,12 @@ document.addEventListener("click", (event) => {
   const action = button.dataset.action;
 
   if (action === "remove-line") {
-    state.order = state.order.filter((line) => line.id !== button.dataset.id);
-    saveState();
-    render();
+    // Added safety guard confirmation check
+    if (confirm("Remove this item line from this supplier's active purchase order list?")) {
+      state.order = state.order.filter((line) => line.id !== button.dataset.id);
+      saveState();
+      render();
+    }
   }
 
   if (action === "whatsapp-vendor") {
@@ -472,7 +477,6 @@ document.addEventListener("click", (event) => {
     const textMessage = `Hello ${supplier.name},\n\nPlease arrange delivery for the following purchase items:\n\n${itemsText}\n\nThank you.`;
     const cleanPhone = (supplier.phone || "").replace(/[^0-9]/g, "");
     
-    window.open:// Trigger native app target paths safely
     window.open(`https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(textMessage)}`, "_blank");
   }
 
@@ -496,10 +500,12 @@ el.tabButtons.forEach((button) => {
 });
 
 document.querySelector("#resetDemoBtn").addEventListener("click", () => {
-  state = structuredClone(sampleState);
-  saveState();
-  el.recentOrderAlert.style.display = "none";
-  render();
+  if (confirm("Reset application data to clear custom logs and load defaults?")) {
+    state = structuredClone(sampleState);
+    saveState();
+    el.recentOrderAlert.style.display = "none";
+    render();
+  }
 });
 
 document.querySelector("#exportDataBtn").addEventListener("click", () => {
