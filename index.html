@@ -10,7 +10,7 @@
     <title>Shop Stock Order App</title>
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="icon" href="icon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="styles.css?v=8" />
+    <link rel="stylesheet" href="styles.css?v=10" />
     <style>
       /* Sub-navigation tabs layout inside Add Data */
       .sub-nav-tabs {
@@ -106,6 +106,7 @@
           flex: 1;
           min-width: 0;
           padding-right: 8px !important;
+          text-align: left !important;
         }
         #stockTable td[data-label="Supplier"],
         #stockTable td[data-label="Unit"] {
@@ -169,16 +170,22 @@
         background: var(--soft);
       }
       
-      /* Prevents text from pushing past container edges */
+      /* FIXED: Flexible layout container that holds items securely when checkboxes appear */
+      .single-line-row .vendor-title-wrapper {
+        display: flex;
+        align-items: center;
+        min-width: 0;
+        flex: 1;
+        padding-right: 8px;
+      }
       .single-line-row .vendor-title {
         font-weight: 700;
         color: var(--ink);
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        flex: 1;
         min-width: 0;
-        padding-right: 8px;
+        flex: 1;
       }
       .single-line-row .badge-count {
         background: #eef6f4;
@@ -246,7 +253,6 @@
         -webkit-tap-highlight-color: transparent;
       }
 
-      /* Custom High-Definition Flat Vector Red Trash Asset matching screenshot */
       .custom-red-trash-icon {
         width: 18px;
         height: 18px;
@@ -261,7 +267,7 @@
         height: 16px !important;
         accent-color: #ff3b30;
         cursor: pointer;
-        margin: 0 8px 0 0 !important;
+        margin: 0 10px 0 0 !important;
         flex-shrink: 0;
       }
       
@@ -294,7 +300,6 @@
         to { opacity: 1; transform: translateY(0); }
       }
 
-      /* Inline container styling for the relative unit label element layout badge */
       .qty-input-container {
         position: relative;
         display: flex;
@@ -312,6 +317,38 @@
       }
       #orderQty {
         padding-right: 65px !important;
+      }
+
+      #stockForm label {
+        display: flex !important;
+        flex-direction: column !important;
+        position: relative !important;
+      }
+
+      .stock-quick-order-bar {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        background: var(--soft);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 10px 12px;
+        margin: -2px 0 14px;
+      }
+      .stock-quick-order-info {
+        flex: 1 1 160px;
+        min-width: 0;
+      }
+      .stock-quick-order-info strong {
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .stock-quick-order-qty {
+        max-width: 140px;
+        flex: 0 0 auto;
       }
     </style>
   </head>
@@ -425,25 +462,47 @@
               </div>
             </div>
 
-            <form id="stockForm" class="form-grid">
+            <form id="stockForm" class="form-grid" autocomplete="off">
               <label>
                 Item name
                 <input id="itemName" required placeholder="e.g. Basmati Rice 5kg" />
               </label>
               <label>
                 Supplier
-                <select id="itemSupplier" required></select>
+                <div class="search-suggest-container">
+                  <input id="stockSupplierSearchInput" type="text" placeholder="🔍 Type supplier name to filter..." required />
+                  <input id="hiddenStockSupplierId" type="hidden" required />
+                  <div id="supplierSuggestionsBox" class="search-suggestions-box"></div>
+                </div>
               </label>
               <label>
                 Unit
-                <input id="itemUnit" placeholder="pcs, packs, bags, kg" value="pcs" required />
+                <input id="itemUnit" placeholder="pcs, packs, bags, kg" required />
               </label>
               <button id="stockSubmitBtn" class="primary full-row" type="submit">Save Stock Item</button>
-            </label>
+            </form>
+
             <div class="toolbar">
-              <input id="stockSearch" placeholder="Search stock items" />
+              <div class="search-suggest-container" style="flex: 1 1 260px;">
+                <input id="stockSearch" placeholder="🔍 Search stock items..." autocomplete="off" />
+                <div id="stockSearchSuggestionsBox" class="search-suggestions-box"></div>
+              </div>
               <select id="supplierFilter" aria-label="Filter by supplier"></select>
             </div>
+
+            <div id="stockQuickOrderBar" class="stock-quick-order-bar" style="display: none">
+              <div class="stock-quick-order-info">
+                <strong id="stockQuickOrderItemName"></strong>
+                <span id="stockQuickOrderSupplierName" class="subtle"></span>
+              </div>
+              <div class="qty-input-container stock-quick-order-qty">
+                <input id="stockQuickOrderQty" type="number" min="1" step="1" value="1" />
+                <span id="stockQuickOrderUnitLabel" class="qty-inline-unit-label"></span>
+              </div>
+              <button id="stockQuickOrderAddBtn" class="primary small-action" type="button">Add to Order</button>
+              <button id="stockQuickOrderCancelBtn" class="icon-btn" type="button" title="Cancel">✕</button>
+            </div>
+            <div id="stockQuickOrderAlert" style="display: none; margin-bottom: 12px"></div>
 
             <div class="table-wrap">
               <table>
@@ -484,6 +543,12 @@
               </label>
               <button class="primary full-row" type="submit">Add Supplier</button>
             </form>
+
+            <div class="search-suggest-container" style="margin: 14px 0 4px;">
+              <input id="supplierSearchInput" type="text" placeholder="🔍 Type to search suppliers..." autocomplete="off" />
+              <div id="supplierSearchSuggestionsBox" class="search-suggestions-box"></div>
+            </div>
+
             <div id="supplierList" class="supplier-list"></div>
           </div>
         </div>
@@ -509,6 +574,6 @@
     </main>
 
     <section id="printArea" class="print-area" aria-hidden="true"></section>
-    <script src="app.js?v=8"></script>
+    <script src="app.js?v=10"></script>
   </body>
 </html>
