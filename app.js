@@ -344,6 +344,28 @@ const el = {
   stockBulkDeleteCancelBtn: document.querySelector("#stockBulkDeleteCancelBtn"),
   stockBulkDeleteExecuteBtn: document.querySelector("#stockBulkDeleteExecuteBtn"),
 
+  alreadyInListModal: document.querySelector("#alreadyInListModal"),
+  alreadyInListTitle: document.querySelector("#alreadyInListTitle"),
+  alreadyInListBody: document.querySelector("#alreadyInListBody"),
+  alreadyInListNoBtn: document.querySelector("#alreadyInListNoBtn"),
+  alreadyInListEditBtn: document.querySelector("#alreadyInListEditBtn"),
+
+  editStockModal: document.querySelector("#editStockModal"),
+  editStockName: document.querySelector("#editStockName"),
+  editStockSupplierSearch: document.querySelector("#editStockSupplierSearch"),
+  editStockHiddenSupplierId: document.querySelector("#editStockHiddenSupplierId"),
+  editStockSupplierSuggestionsBox: document.querySelector("#editStockSupplierSuggestionsBox"),
+  editStockUnit: document.querySelector("#editStockUnit"),
+  editStockCancelBtn: document.querySelector("#editStockCancelBtn"),
+  editStockSaveBtn: document.querySelector("#editStockSaveBtn"),
+
+  editSupplierModal: document.querySelector("#editSupplierModal"),
+  editSupplierName: document.querySelector("#editSupplierName"),
+  editSupplierEmail: document.querySelector("#editSupplierEmail"),
+  editSupplierPhone: document.querySelector("#editSupplierPhone"),
+  editSupplierCancelBtn: document.querySelector("#editSupplierCancelBtn"),
+  editSupplierSaveBtn: document.querySelector("#editSupplierSaveBtn"),
+
   editQtyModal: document.querySelector("#editQtyModal"),
   editQtyModalTitle: document.querySelector("#editQtyModalTitle"),
   editQtyItemName: document.querySelector("#editQtyItemName"),
@@ -656,9 +678,7 @@ function setupStockTableLongPress() {
         if (cb) { cb.checked = !cb.checked; updateStockBulkDeleteBar(); }
         return;
       }
-      // normal mode: open add-to-order modal
-      const item = state.stocks.find((s) => s.id === row.dataset.itemId);
-      if (item) openAddToOrderModal(item);
+      // single tap in normal mode: no action (ordering is done from the Order List page)
     });
   });
 }
@@ -712,43 +732,41 @@ function renderSupplierList() {
 
       const stocksHtml = isExpanded ? `
         <div class="supplier-stock-list">
-          <div style="font-size: 0.8rem; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin: 10px 0 6px;">
-            ${supplierStocks.length} Stock Item${supplierStocks.length === 1 ? "" : "s"} — tap to add to order
+          <div style="font-size: 0.78rem; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin: 10px 0 6px;">
+            ${supplierStocks.length} Stock Item${supplierStocks.length === 1 ? "" : "s"} — tap any to add to order
           </div>
           ${supplierStocks.length ? supplierStocks.map(item => `
             <div class="supplier-stock-item" data-item-id="${item.id}" style="
-              display: flex; justify-content: space-between; align-items: center;
+              display: flex; align-items: center; gap: 10px;
               padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px;
               background: var(--soft); margin-bottom: 5px; cursor: pointer;
-              gap: 10px; user-select: none; -webkit-user-select: none;">
-              <div style="min-width: 0;">
+              user-select: none; -webkit-user-select: none; overflow: hidden;">
+              <div style="flex: 1 1 0; min-width: 0;">
                 <strong style="display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.9rem;">${escapeHtml(item.name)}</strong>
                 <span style="font-size: 0.78rem; color: var(--muted);">${escapeHtml(item.unit || "pcs")}</span>
               </div>
-              <span style="font-size: 1.1rem; flex-shrink: 0;">➕</span>
+              <span style="flex-shrink: 0; font-size: 1rem; color: var(--primary);">➕</span>
             </div>
           `).join("") : `<div class="empty" style="margin: 0;">No stock items linked to this supplier yet.</div>`}
         </div>
       ` : "";
 
       return `
-        <div class="supplier-card" style="border: 1px solid var(--line); border-radius: 8px; margin-bottom: 8px; background:#fff; overflow: hidden;">
+        <div style="border: 1px solid var(--line); border-radius: 8px; margin-bottom: 4px; background:#fff; overflow: hidden;">
           <div class="supplier-card-header" data-supplier-id="${supplier.id}" style="
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 12px 14px; cursor: pointer; gap: 10px;
+            display: flex; align-items: center; gap: 10px;
+            padding: 12px 14px; cursor: pointer;
             user-select: none; -webkit-user-select: none;">
-            <div style="min-width: 0; flex: 1;">
-              <strong style="font-size: 1.05rem; display: block; margin-bottom: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(supplier.name)}</strong>
-              <div class="supplier-meta" style="font-size:0.82rem; color:var(--muted); line-height: 1.4;">
-                ${supplier.email ? `<span>${escapeHtml(supplier.email)}</span>` : ""}
-                ${supplier.email && supplier.phone ? " · " : ""}
-                ${supplier.phone ? `<span>${escapeHtml(supplier.phone)}</span>` : ""}
-                ${!supplier.email && !supplier.phone ? "No contact info" : ""}
+            <div style="flex: 1 1 0; min-width: 0; overflow: hidden;">
+              <strong style="font-size: 1rem; display: block; margin-bottom: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(supplier.name)}</strong>
+              <div style="font-size: 0.82rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                ${supplier.phone ? escapeHtml(supplier.phone) : (supplier.email ? escapeHtml(supplier.email) : "No contact info")}
               </div>
             </div>
-            <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
-              <span style="font-size: 0.78rem; color: var(--muted); font-weight: 700;">${supplierStocks.length} items</span>
-              <span style="color: var(--primary); font-size: 1rem; transform: rotate(${isExpanded ? "90deg" : "0deg"}); transition: transform 0.15s; display: inline-block;">›</span>
+            <div style="flex-shrink: 0; display: flex; align-items: center; gap: 6px;">
+              <span style="font-size: 0.78rem; color: var(--muted); font-weight: 700; white-space: nowrap;">${supplierStocks.length} item${supplierStocks.length === 1 ? "" : "s"}</span>
+              <span style="color: var(--primary); font-size: 1.1rem; line-height: 1; display: inline-block;
+                transform: rotate(${isExpanded ? "90deg" : "0deg"}); transition: transform 0.15s;">›</span>
             </div>
           </div>
           ${isExpanded ? `
@@ -1092,9 +1110,30 @@ function cancelDeepLongPress() {
 // ---------- Quantity modal (dual mode: add-to-order or edit-existing-line) ----------
 let editingQtyLineId = null;   // set when editing an existing line
 let addingOrderItemId = null;  // set when adding a new line from a stock tap
+let alreadyInListLineId = null; // holds the existing line if already-in-list dialog is showing
 
 function openAddToOrderModal(item) {
-  // "Add to Order" mode — opened by tapping a stock row
+  // Check if this item is already in the active order — show info dialog if so
+  const existingLine = state.order.find(
+    (l) => l.itemId === item.id && (l.status || "active") === "active"
+  );
+
+  if (existingLine) {
+    // Show the "already in list" dialog instead of the add form
+    alreadyInListLineId = existingLine.id;
+    if (el.alreadyInListTitle) el.alreadyInListTitle.textContent = "Already in Order";
+    if (el.alreadyInListBody) {
+      el.alreadyInListBody.innerHTML = `
+        <strong>${escapeHtml(item.name)}</strong> is already in your active order list.<br><br>
+        Current quantity: <strong>${existingLine.quantity} ${escapeHtml(item.unit || "pcs")}</strong><br><br>
+        Would you like to edit the quantity?
+      `;
+    }
+    if (el.alreadyInListModal) el.alreadyInListModal.style.display = "flex";
+    return;
+  }
+
+  // Item not in active order — open the normal add form
   editingQtyLineId = null;
   addingOrderItemId = item.id;
 
@@ -1106,6 +1145,145 @@ function openAddToOrderModal(item) {
   setTimeout(() => {
     if (el.editQtyInput) { el.editQtyInput.focus(); el.editQtyInput.select(); }
   }, 50);
+}
+
+function closeAlreadyInListModal() {
+  alreadyInListLineId = null;
+  if (el.alreadyInListModal) el.alreadyInListModal.style.display = "none";
+}
+
+if (el.alreadyInListNoBtn) {
+  el.alreadyInListNoBtn.addEventListener("click", closeAlreadyInListModal);
+}
+
+if (el.alreadyInListEditBtn) {
+  el.alreadyInListEditBtn.addEventListener("click", () => {
+    const line = state.order.find((l) => l.id === alreadyInListLineId);
+    if (!line) { closeAlreadyInListModal(); return; }
+    const item = state.stocks.find((s) => s.id === line.itemId);
+    closeAlreadyInListModal();
+    // Open the edit modal for this existing line
+    openEditQtyModal(line, item);
+  });
+}
+
+if (el.alreadyInListModal) {
+  el.alreadyInListModal.addEventListener("click", (event) => {
+    if (event.target === el.alreadyInListModal) closeAlreadyInListModal();
+  });
+}
+
+// ---------- Edit Stock Modal ----------
+let editingStockModalId = null;
+
+function openEditStockModal(item) {
+  editingStockModalId = item.id;
+  if (el.editStockName) el.editStockName.value = item.name;
+  if (el.editStockSupplierSearch) el.editStockSupplierSearch.value = supplierName(item.supplierId);
+  if (el.editStockHiddenSupplierId) el.editStockHiddenSupplierId.value = item.supplierId;
+  if (el.editStockUnit) el.editStockUnit.value = item.unit || "";
+  if (el.editStockModal) el.editStockModal.style.display = "flex";
+  setTimeout(() => { if (el.editStockName) { el.editStockName.focus(); } }, 50);
+}
+
+function closeEditStockModal() {
+  editingStockModalId = null;
+  if (el.editStockModal) el.editStockModal.style.display = "none";
+  if (el.editStockSupplierSuggestionsBox) el.editStockSupplierSuggestionsBox.style.display = "none";
+}
+
+function saveEditStockModal() {
+  const name = el.editStockName?.value.trim();
+  const supplierId = el.editStockHiddenSupplierId?.value;
+  const unit = formatUnit(el.editStockUnit?.value);
+
+  if (!name) { alert("Please enter an item name."); return; }
+  if (!supplierId) { alert("Please select a supplier from the list."); return; }
+
+  const item = state.stocks.find(s => s.id === editingStockModalId);
+  if (!item) { closeEditStockModal(); return; }
+
+  item.name = name;
+  item.supplierId = supplierId;
+  item.unit = unit;
+  saveState();
+  syncToSupabase("stocks", "upsert", { rows: [stockToDb(item)] });
+  closeEditStockModal();
+  render();
+}
+
+if (el.editStockSaveBtn) el.editStockSaveBtn.addEventListener("click", saveEditStockModal);
+if (el.editStockCancelBtn) el.editStockCancelBtn.addEventListener("click", closeEditStockModal);
+if (el.editStockModal) {
+  el.editStockModal.addEventListener("click", (e) => { if (e.target === el.editStockModal) closeEditStockModal(); });
+}
+
+// Supplier autocomplete inside the edit stock modal
+if (el.editStockSupplierSearch) {
+  el.editStockSupplierSearch.addEventListener("input", () => {
+    const query = el.editStockSupplierSearch.value.trim().toLowerCase();
+    if (!query) { el.editStockSupplierSuggestionsBox.style.display = "none"; return; }
+    const matches = state.suppliers.filter(s => s.name.toLowerCase().includes(query));
+    if (!matches.length) { el.editStockSupplierSuggestionsBox.style.display = "none"; return; }
+    el.editStockSupplierSuggestionsBox.innerHTML = matches.map(s =>
+      `<div class="suggestion-item supplier-suggestion-item" data-id="${s.id}" data-name="${escapeHtml(s.name)}"><strong>${escapeHtml(s.name)}</strong></div>`
+    ).join("");
+    el.editStockSupplierSuggestionsBox.style.display = "block";
+  });
+}
+
+if (el.editStockSupplierSuggestionsBox) {
+  el.editStockSupplierSuggestionsBox.addEventListener("mousedown", (e) => {
+    const item = e.target.closest(".supplier-suggestion-item");
+    if (!item) return;
+    e.preventDefault();
+    if (el.editStockSupplierSearch) el.editStockSupplierSearch.value = item.dataset.name;
+    if (el.editStockHiddenSupplierId) el.editStockHiddenSupplierId.value = item.dataset.id;
+    el.editStockSupplierSuggestionsBox.style.display = "none";
+    if (el.editStockUnit) el.editStockUnit.focus();
+  });
+}
+
+// ---------- Edit Supplier Modal ----------
+let editingSupplierModalId = null;
+
+function openEditSupplierModal(supplier) {
+  editingSupplierModalId = supplier.id;
+  if (el.editSupplierName) el.editSupplierName.value = supplier.name;
+  if (el.editSupplierEmail) el.editSupplierEmail.value = supplier.email || "";
+  if (el.editSupplierPhone) el.editSupplierPhone.value = supplier.phone || "";
+  if (el.editSupplierModal) el.editSupplierModal.style.display = "flex";
+  setTimeout(() => { if (el.editSupplierName) el.editSupplierName.focus(); }, 50);
+}
+
+function closeEditSupplierModal() {
+  editingSupplierModalId = null;
+  if (el.editSupplierModal) el.editSupplierModal.style.display = "none";
+}
+
+function saveEditSupplierModal() {
+  const name = el.editSupplierName?.value.trim();
+  const email = el.editSupplierEmail?.value.trim();
+  const phone = (el.editSupplierPhone?.value.trim() || "").replace(/[^0-9+]/g, "");
+
+  if (!name) { alert("Please enter a supplier name."); return; }
+
+  const supplier = state.suppliers.find(s => s.id === editingSupplierModalId);
+  if (!supplier) { closeEditSupplierModal(); return; }
+
+  supplier.name = name;
+  supplier.email = email;
+  supplier.phone = phone;
+  saveState();
+  syncToSupabase("suppliers", "upsert", { rows: [supplierToDb(supplier)] });
+  closeEditSupplierModal();
+  render();
+}
+
+if (el.editSupplierSaveBtn) el.editSupplierSaveBtn.addEventListener("click", saveEditSupplierModal);
+if (el.editSupplierCancelBtn) el.editSupplierCancelBtn.addEventListener("click", closeEditSupplierModal);
+if (el.editSupplierModal) {
+  el.editSupplierModal.addEventListener("click", (e) => { if (e.target === el.editSupplierModal) closeEditSupplierModal(); });
 }
 
 function openEditQtyModal(line, item) {
@@ -1151,7 +1329,10 @@ function saveEditQtyModal() {
     saveState();
     syncToSupabase("orders", "upsert", { rows: [orderToDb(line)] });
     closeEditQtyModal();
-    openSupplierDeepView(focusedSupplierId, focusedBatchId);
+    // Only navigate back into the deep view if we're actually in the order details page
+    if (focusedSupplierId && el.deepView && el.deepView.style.display !== "none") {
+      openSupplierDeepView(focusedSupplierId, focusedBatchId);
+    }
   }
 }
 
@@ -1310,14 +1491,7 @@ document.addEventListener("click", (event) => {
 
   if (action === "edit-supplier") {
     const supplier = state.suppliers.find((s) => s.id === id);
-    if (supplier) {
-      editingSupplierId = supplier.id;
-      document.querySelector("#supplierName").value = supplier.name;
-      document.querySelector("#supplierEmail").value = supplier.email || "";
-      document.querySelector("#supplierPhone").value = supplier.phone || "";
-      document.querySelector("#supplierForm button[type='submit']").textContent = "Update Supplier";
-      if (document.querySelector("#supplierForm")) document.querySelector("#supplierForm").scrollIntoView({ behavior: 'smooth' });
-    }
+    if (supplier) openEditSupplierModal(supplier);
   }
 
   if (action === "delete-supplier") {
@@ -1416,10 +1590,33 @@ if (el.searchSuggestionsBox) {
 
     event.preventDefault();
 
+    const selectedItem = state.stocks.find(s => s.id === suggestionItem.dataset.id);
+
+    // Check if this item is already in the active order
+    const existingLine = selectedItem
+      ? state.order.find(l => l.itemId === selectedItem.id && (l.status || "active") === "active")
+      : null;
+
+    if (existingLine && selectedItem) {
+      // Show the already-in-list popup instead of moving to quantity
+      el.searchSuggestionsBox.style.display = "none";
+      alreadyInListLineId = existingLine.id;
+      if (el.alreadyInListTitle) el.alreadyInListTitle.textContent = "Already in Order";
+      if (el.alreadyInListBody) {
+        el.alreadyInListBody.innerHTML = `
+          <strong>${escapeHtml(selectedItem.name)}</strong> is already in your active order list.<br><br>
+          Current quantity: <strong>${existingLine.quantity} ${escapeHtml(selectedItem.unit || "pcs")}</strong><br><br>
+          Would you like to edit the quantity?
+        `;
+      }
+      if (el.alreadyInListModal) el.alreadyInListModal.style.display = "flex";
+      return;
+    }
+
+    // Not a duplicate — proceed normally
     if (el.orderItemSearchInput) el.orderItemSearchInput.value = suggestionItem.dataset.name;
     if (el.hiddenOrderItemId) el.hiddenOrderItemId.value = suggestionItem.dataset.id;
     
-    const selectedItem = state.stocks.find(s => s.id === suggestionItem.dataset.id);
     if (selectedItem && el.orderQtyInlineUnit) {
       el.orderQtyInlineUnit.textContent = selectedItem.unit || "pcs";
     }
@@ -1493,27 +1690,14 @@ if (el.stockForm) {
       return;
     }
 
-    if (editingStockId) {
-      const stockItem = state.stocks.find((item) => item.id === editingStockId);
-      if (stockItem) {
-        stockItem.name = name;
-        stockItem.supplierId = supplierId;
-        stockItem.unit = unit;
-        syncToSupabase("stocks", "upsert", { rows: [stockToDb(stockItem)] });
-      }
-      editingStockId = null;
-      if (el.stockSubmitBtn) el.stockSubmitBtn.textContent = "Save Stock Item";
-    } else {
-      const newStock = { id: generateUUID(), name, supplierId, unit };
-      state.stocks.push(newStock);
-      syncToSupabase("stocks", "upsert", { rows: [stockToDb(newStock)] });
-    }
+    // stockForm is now add-only; editing goes through the edit stock modal
+    const newStock = { id: generateUUID(), name, supplierId, unit };
+    state.stocks.push(newStock);
+    syncToSupabase("stocks", "upsert", { rows: [stockToDb(newStock)] });
     saveState();
     el.stockForm.reset();
-    
     if (el.hiddenStockSupplierId) el.hiddenStockSupplierId.value = "";
     document.querySelector("#itemUnit").value = "";
-    
     render();
   });
 }
@@ -1525,21 +1709,10 @@ if (el.supplierForm) {
     const email = document.querySelector("#supplierEmail").value.trim();
     const phone = document.querySelector("#supplierPhone").value.trim().replace(/[^0-9+]/g, "");
 
-    if (editingSupplierId) {
-      const supplier = state.suppliers.find((s) => s.id === editingSupplierId);
-      if (supplier) {
-        supplier.name = name;
-        supplier.email = email;
-        supplier.phone = phone;
-        syncToSupabase("suppliers", "upsert", { rows: [supplierToDb(supplier)] });
-      }
-      editingSupplierId = null;
-      document.querySelector("#supplierForm button[type='submit']").textContent = "Add Supplier";
-    } else {
-      const newSupplier = { id: generateUUID(), name, email, phone };
-      state.suppliers.push(newSupplier);
-      syncToSupabase("suppliers", "upsert", { rows: [supplierToDb(newSupplier)] });
-    }
+    // supplierForm is now add-only; editing goes through the edit supplier modal
+    const newSupplier = { id: generateUUID(), name, email, phone };
+    state.suppliers.push(newSupplier);
+    syncToSupabase("suppliers", "upsert", { rows: [supplierToDb(newSupplier)] });
     saveState();
     el.supplierForm.reset();
     render();
@@ -1588,15 +1761,7 @@ if (el.stockTable) {
 
     if (action === "edit-stock") {
       const item = state.stocks.find((stock) => stock.id === id);
-      if (item) {
-        editingStockId = item.id;
-        document.querySelector("#itemName").value = item.name;
-        if (el.stockSupplierSearchInput) el.stockSupplierSearchInput.value = supplierName(item.supplierId);
-        if (el.hiddenStockSupplierId) el.hiddenStockSupplierId.value = item.supplierId;
-        document.querySelector("#itemUnit").value = item.unit || "";
-        if (el.stockSubmitBtn) el.stockSubmitBtn.textContent = "Update Stock Item";
-        if (el.stockForm) el.stockForm.scrollIntoView({ behavior: 'smooth' });
-      }
+      if (item) openEditStockModal(item);
       return;
     }
   });

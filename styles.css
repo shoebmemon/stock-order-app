@@ -316,7 +316,7 @@ tr:last-child td {
 }
 
 .supplier-list {
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  grid-template-columns: 1fr;
 }
 
 .supplier-card strong,
