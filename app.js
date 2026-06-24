@@ -309,10 +309,12 @@ const el = {
   
   bulkDeleteToolbar: document.querySelector("#bulkDeleteToolbar"),
   bulkDeleteCountLabel: document.querySelector("#bulkDeleteCountLabel"),
+  bulkDeleteCancelBtn: document.querySelector("#bulkDeleteCancelBtn"),
   bulkDeleteExecuteBtn: document.querySelector("#bulkDeleteExecuteBtn"),
 
   masterBulkDeleteToolbar: document.querySelector("#masterBulkDeleteToolbar"),
   masterBulkDeleteCountLabel: document.querySelector("#masterBulkDeleteCountLabel"),
+  masterBulkDeleteCancelBtn: document.querySelector("#masterBulkDeleteCancelBtn"),
   masterBulkDeleteExecuteBtn: document.querySelector("#masterBulkDeleteExecuteBtn"),
   masterBulkDeleteAllBtn: document.querySelector("#masterBulkDeleteAllBtn"),
 
@@ -338,6 +340,13 @@ const el = {
 
   supplierSearchInput: document.querySelector("#supplierSearchInput"),
   supplierSearchSuggestionsBox: document.querySelector("#supplierSearchSuggestionsBox"),
+
+  supplierMasterView: document.querySelector("#supplierMasterView"),
+  supplierStockDetailView: document.querySelector("#supplierStockDetailView"),
+  supplierStockBackBtn: document.querySelector("#supplierStockBackBtn"),
+  supplierStockDetailName: document.querySelector("#supplierStockDetailName"),
+  supplierStockDetailContact: document.querySelector("#supplierStockDetailContact"),
+  supplierStockDetailList: document.querySelector("#supplierStockDetailList"),
 
   stockBulkDeleteBar: document.querySelector("#stockBulkDeleteBar"),
   stockBulkDeleteCount: document.querySelector("#stockBulkDeleteCount"),
@@ -588,6 +597,11 @@ function showSubPage(subPageId) {
   el.subTabButtons.forEach((btn) => {
     btn.classList.toggle("active", btn.dataset.subTarget === subPageId);
   });
+
+  // When switching away from the supplier sub-page, reset detail view
+  if (subPageId !== "supplierSubPage") {
+    closeSupplierStockDetail();
+  }
 }
 
 function renderSupplierOptions() {
@@ -706,7 +720,55 @@ function updateStockBulkDeleteBar() {
 }
 
 
-let expandedSupplierId = null;
+let expandedSupplierId = null; // kept for backwards compatibility, no longer used for expansion
+let focusedSupplierDetailId = null;
+
+function openSupplierStockDetail(supplierId) {
+  focusedSupplierDetailId = supplierId;
+  const supplier = state.suppliers.find(s => s.id === supplierId);
+  if (!supplier) return;
+
+  if (el.supplierMasterView) el.supplierMasterView.style.display = "none";
+  if (el.supplierStockDetailView) el.supplierStockDetailView.style.display = "block";
+
+  if (el.supplierStockDetailName) el.supplierStockDetailName.textContent = supplier.name;
+  if (el.supplierStockDetailContact) {
+    const contact = [supplier.phone, supplier.email].filter(Boolean).join(" · ");
+    el.supplierStockDetailContact.textContent = contact || "No contact info";
+  }
+
+  renderSupplierStockDetail();
+}
+
+function renderSupplierStockDetail() {
+  if (!el.supplierStockDetailList || !focusedSupplierDetailId) return;
+  const items = state.stocks.filter(s => s.supplierId === focusedSupplierDetailId);
+
+  if (!items.length) {
+    el.supplierStockDetailList.innerHTML = `<div class="empty">No stock items linked to this supplier yet.<br>Go to Stock Details to add some.</div>`;
+    return;
+  }
+
+  el.supplierStockDetailList.innerHTML = items.map(item => `
+    <div class="supplier-stock-item" data-item-id="${item.id}" style="
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px;
+      background: #fff; margin-bottom: 6px; cursor: pointer;
+      user-select: none; -webkit-user-select: none; overflow: hidden;">
+      <div style="flex: 1 1 0; min-width: 0;">
+        <strong style="display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.95rem;">${escapeHtml(item.name)}</strong>
+        <span style="font-size: 0.8rem; color: var(--muted);">${escapeHtml(item.unit || "pcs")}</span>
+      </div>
+      <span style="flex-shrink: 0; color: var(--primary); font-size: 1rem;">➕</span>
+    </div>
+  `).join("");
+}
+
+function closeSupplierStockDetail() {
+  focusedSupplierDetailId = null;
+  if (el.supplierStockDetailView) el.supplierStockDetailView.style.display = "none";
+  if (el.supplierMasterView) el.supplierMasterView.style.display = "block";
+}
 
 function renderSupplierList() {
   if (!el.supplierList) return;
@@ -727,56 +789,23 @@ function renderSupplierList() {
 
   el.supplierList.innerHTML = visibleSuppliers
     .map((supplier) => {
-      const isExpanded = expandedSupplierId === supplier.id;
-      const supplierStocks = state.stocks.filter(s => s.supplierId === supplier.id);
-
-      const stocksHtml = isExpanded ? `
-        <div class="supplier-stock-list">
-          <div style="font-size: 0.78rem; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin: 10px 0 6px;">
-            ${supplierStocks.length} Stock Item${supplierStocks.length === 1 ? "" : "s"} — tap any to add to order
-          </div>
-          ${supplierStocks.length ? supplierStocks.map(item => `
-            <div class="supplier-stock-item" data-item-id="${item.id}" style="
-              display: flex; align-items: center; gap: 10px;
-              padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px;
-              background: var(--soft); margin-bottom: 5px; cursor: pointer;
-              user-select: none; -webkit-user-select: none; overflow: hidden;">
-              <div style="flex: 1 1 0; min-width: 0;">
-                <strong style="display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.9rem;">${escapeHtml(item.name)}</strong>
-                <span style="font-size: 0.78rem; color: var(--muted);">${escapeHtml(item.unit || "pcs")}</span>
-              </div>
-              <span style="flex-shrink: 0; font-size: 1rem; color: var(--primary);">➕</span>
-            </div>
-          `).join("") : `<div class="empty" style="margin: 0;">No stock items linked to this supplier yet.</div>`}
-        </div>
-      ` : "";
-
       return `
-        <div style="border: 1px solid var(--line); border-radius: 8px; margin-bottom: 4px; background:#fff; overflow: hidden;">
-          <div class="supplier-card-header" data-supplier-id="${supplier.id}" style="
-            display: flex; align-items: center; gap: 10px;
-            padding: 12px 14px; cursor: pointer;
-            user-select: none; -webkit-user-select: none;">
-            <div style="flex: 1 1 0; min-width: 0; overflow: hidden;">
-              <strong style="font-size: 1rem; display: block; margin-bottom: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(supplier.name)}</strong>
-              <div style="font-size: 0.82rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                ${supplier.phone ? escapeHtml(supplier.phone) : (supplier.email ? escapeHtml(supplier.email) : "No contact info")}
-              </div>
-            </div>
-            <div style="flex-shrink: 0; display: flex; align-items: center; gap: 6px;">
-              <span style="font-size: 0.78rem; color: var(--muted); font-weight: 700; white-space: nowrap;">${supplierStocks.length} item${supplierStocks.length === 1 ? "" : "s"}</span>
-              <span style="color: var(--primary); font-size: 1.1rem; line-height: 1; display: inline-block;
-                transform: rotate(${isExpanded ? "90deg" : "0deg"}); transition: transform 0.15s;">›</span>
+        <div class="supplier-card-row" data-supplier-id="${supplier.id}" style="
+          display: flex; align-items: center; gap: 10px;
+          border: 1px solid var(--line); border-radius: 8px;
+          padding: 12px 14px; background: #fff; margin-bottom: 6px;
+          cursor: pointer; user-select: none; -webkit-user-select: none; overflow: hidden;">
+          <div style="flex: 1 1 0; min-width: 0; overflow: hidden;">
+            <strong style="font-size: 1rem; display: block; margin-bottom: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(supplier.name)}</strong>
+            <div style="font-size: 0.82rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+              ${supplier.phone ? escapeHtml(supplier.phone) : (supplier.email ? escapeHtml(supplier.email) : "No contact info")}
             </div>
           </div>
-          ${isExpanded ? `
-          <div style="padding: 0 14px 12px; border-top: 1px solid var(--line);">
-            ${stocksHtml}
-            <div style="display: flex; gap: 8px; margin-top: 10px;">
-              <button class="icon-btn" type="button" data-action="edit-supplier" data-id="${supplier.id}" style="padding: 4px 12px; min-height: 34px; font-size: 0.82rem;">✏️ Edit</button>
-              <button class="icon-btn danger-soft" type="button" data-action="delete-supplier" data-id="${supplier.id}" style="padding: 4px 12px; min-height: 34px; font-size: 0.82rem;">🗑 Delete</button>
+          <div style="flex-shrink: 0; display: flex; align-items: center; gap: 6px;">
+              <button class="icon-btn" type="button" data-action="edit-supplier" data-id="${supplier.id}" style="padding: 0; min-height: 34px; width: 34px; font-size: 1rem;" title="Edit">✏️</button>
+              <button type="button" data-action="delete-supplier" data-id="${supplier.id}" style="padding: 0; min-height: 34px; width: 34px; font-size: 1rem; background: #ff3b30; border: none; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center;" title="Delete">🗑</button>
+              <span style="color: var(--primary); font-size: 1.2rem; line-height: 1; padding-left: 4px;">›</span>
             </div>
-          </div>` : ""}
         </div>
       `;
     }).join("");
@@ -812,21 +841,26 @@ function handleSearchInput() {
 
 if (el.supplierList) {
   el.supplierList.addEventListener("click", (event) => {
-    // Stock item tap → add to order modal
-    const stockItem = event.target.closest(".supplier-stock-item");
-    if (stockItem) {
-      const item = state.stocks.find(s => s.id === stockItem.dataset.itemId);
-      if (item) openAddToOrderModal(item);
-      return;
-    }
+    // Don't navigate if tapping Edit or Delete buttons
+    if (event.target.closest("button[data-action]")) return;
 
-    // Supplier card header tap → expand/collapse
-    const header = event.target.closest(".supplier-card-header");
-    if (header && !event.target.closest("button[data-action]")) {
-      const supplierId = header.dataset.supplierId;
-      expandedSupplierId = expandedSupplierId === supplierId ? null : supplierId;
-      renderSupplierList();
+    const row = event.target.closest(".supplier-card-row");
+    if (row) {
+      openSupplierStockDetail(row.dataset.supplierId);
     }
+  });
+}
+
+if (el.supplierStockBackBtn) {
+  el.supplierStockBackBtn.addEventListener("click", closeSupplierStockDetail);
+}
+
+if (el.supplierStockDetailList) {
+  el.supplierStockDetailList.addEventListener("click", (event) => {
+    const item = event.target.closest(".supplier-stock-item");
+    if (!item) return;
+    const stock = state.stocks.find(s => s.id === item.dataset.itemId);
+    if (stock) openAddToOrderModal(stock);
   });
 }
 
@@ -1546,6 +1580,20 @@ if (el.bulkDeleteExecuteBtn) {
   });
 }
 
+if (el.bulkDeleteCancelBtn) {
+  el.bulkDeleteCancelBtn.addEventListener("click", () => {
+    // Uncheck all, hide toolbar, exit selection mode
+    if (el.deepViewLinesList) {
+      el.deepViewLinesList.querySelectorAll(".multi-delete-checkbox").forEach(cb => {
+        cb.checked = false;
+      });
+    }
+    if (el.bulkDeleteToolbar) el.bulkDeleteToolbar.style.display = "none";
+    if (el.deepView) el.deepView.classList.remove("selection-active");
+    if (el.bulkDeleteCountLabel) el.bulkDeleteCountLabel.textContent = "0 items selected";
+  });
+}
+
 if (el.masterBulkDeleteExecuteBtn) {
   el.masterBulkDeleteExecuteBtn.addEventListener("click", () => {
     const selectedBoxes = el.bifurcatedOrderContainer.querySelectorAll(".master-multi-delete-checkbox:checked");
@@ -1565,6 +1613,20 @@ if (el.masterBulkDeleteExecuteBtn) {
       syncToSupabase("orders", "delete", { ids: idsToDelete });
       renderBifurcatedOrders();
     }
+  });
+}
+
+if (el.masterBulkDeleteCancelBtn) {
+  el.masterBulkDeleteCancelBtn.addEventListener("click", () => {
+    // Uncheck all, hide toolbar, exit selection mode
+    if (el.bifurcatedOrderContainer) {
+      el.bifurcatedOrderContainer.querySelectorAll(".master-multi-delete-checkbox").forEach(cb => {
+        cb.checked = false;
+      });
+    }
+    if (el.masterBulkDeleteToolbar) el.masterBulkDeleteToolbar.style.display = "none";
+    if (el.masterView) el.masterView.classList.remove("selection-active");
+    if (el.masterBulkDeleteCountLabel) el.masterBulkDeleteCountLabel.textContent = "0 orders selected";
   });
 }
 

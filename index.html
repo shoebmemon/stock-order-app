@@ -442,10 +442,11 @@
 
           <div id="orderDetailsMasterView">
             <div id="masterBulkDeleteToolbar" class="bulk-delete-bar" style="display: none; margin-bottom: 12px;">
-              <span id="masterBulkDeleteCountLabel" style="color: #c53030; font-size: 0.88rem; font-weight: 700;">0 suppliers selected</span>
+              <span id="masterBulkDeleteCountLabel" style="color: #c53030; font-size: 0.88rem; font-weight: 700;">0 orders selected</span>
               <div style="display: flex; gap: 8px;">
-                <button id="masterBulkDeleteExecuteBtn" type="button" style="background: #fff; color: #e53e3e; border: 1px solid #feb2b2; padding: 4px 10px; font-size: 0.82rem; border-radius: 4px; font-weight: 700; cursor: pointer;">Delete Selected</button>
-                <button id="masterBulkDeleteAllBtn" type="button" style="background: #ff3b30; color: #fff; border: 1px solid #ff3b30; padding: 4px 10px; font-size: 0.82rem; border-radius: 4px; font-weight: 700; cursor: pointer;">Delete All</button>
+                <button id="masterBulkDeleteCancelBtn" type="button" class="secondary small-action">Cancel</button>
+                <button id="masterBulkDeleteExecuteBtn" type="button" class="primary small-action" style="background: var(--danger);">Delete</button>
+                <button id="masterBulkDeleteAllBtn" type="button" class="primary small-action" style="background: var(--danger);">Delete All</button>
               </div>
             </div>
 
@@ -466,7 +467,10 @@
 
               <div id="bulkDeleteToolbar" class="bulk-delete-bar" style="display: none;">
                 <span id="bulkDeleteCountLabel" style="color: #c53030; font-size: 0.88rem; font-weight: 700;">0 items selected</span>
-                <button id="bulkDeleteExecuteBtn" type="button" style="background: #fff; color: #e53e3e; border: 1px solid #feb2b2; padding: 4px 10px; font-size: 0.82rem; border-radius: 4px; font-weight: 700; cursor: pointer;">Delete Selected</button>
+                <div style="display: flex; gap: 8px;">
+                  <button id="bulkDeleteCancelBtn" type="button" class="secondary small-action">Cancel</button>
+                  <button id="bulkDeleteExecuteBtn" type="button" class="primary small-action" style="background: var(--danger);">Delete</button>
+                </div>
               </div>
 
               <div id="deepViewLinesList" style="margin-bottom: 16px"></div>
@@ -564,34 +568,52 @@
 
         <div id="supplierSubPage" class="sub-page-view" hidden>
           <div class="panel supplier-panel">
-            <div class="section-heading">
-              <div>
-                <h2>Supplier Details</h2>
-                <p>Keep supplier email and phone details here.</p>
+
+            <!-- Master view: supplier list -->
+            <div id="supplierMasterView">
+              <div class="section-heading">
+                <div>
+                  <h2>Supplier Details</h2>
+                  <p>Keep supplier email and phone details here.</p>
+                </div>
               </div>
-            </div>
-            <form id="supplierForm" class="form-grid supplier-form" autocomplete="off">
-              <label>
-                Supplier name
-                <input id="supplierName" autocomplete="off" required placeholder="e.g. Sunrise Traders" />
-              </label>
-              <label>
-                Email
-                <input id="supplierEmail" type="email" placeholder="orders@example.com" autocomplete="off" />
-              </label>
-              <label>
-                Phone
-                <input id="supplierPhone" placeholder="e.g. 9876543210" autocomplete="off" />
-              </label>
-              <button class="primary full-row" type="submit">Add Supplier</button>
-            </form>
+              <form id="supplierForm" class="form-grid supplier-form" autocomplete="off">
+                <label>
+                  Supplier name
+                  <input id="supplierName" autocomplete="off" required placeholder="e.g. Sunrise Traders" />
+                </label>
+                <label>
+                  Email
+                  <input id="supplierEmail" type="email" placeholder="orders@example.com" autocomplete="off" />
+                </label>
+                <label>
+                  Phone
+                  <input id="supplierPhone" placeholder="e.g. 9876543210" autocomplete="off" />
+                </label>
+                <button class="primary full-row" type="submit">Add Supplier</button>
+              </form>
 
-            <div class="search-suggest-container" style="margin: 14px 0 4px;">
-              <input id="supplierSearchInput" type="text" placeholder="🔍 Type to search suppliers..." autocomplete="off" />
-              <div id="supplierSearchSuggestionsBox" class="search-suggestions-box"></div>
+              <div class="search-suggest-container" style="margin: 14px 0 4px;">
+                <input id="supplierSearchInput" type="text" placeholder="🔍 Type to search suppliers..." autocomplete="off" />
+                <div id="supplierSearchSuggestionsBox" class="search-suggestions-box"></div>
+              </div>
+
+              <div id="supplierList" class="supplier-list"></div>
             </div>
 
-            <div id="supplierList" class="supplier-list"></div>
+            <!-- Detail view: one supplier's stock items -->
+            <div id="supplierStockDetailView" style="display: none;">
+              <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px;">
+                <button id="supplierStockBackBtn" type="button" class="icon-btn" style="min-height: 36px; padding: 0 12px; font-size: 0.88rem;">← Back</button>
+                <div style="flex: 1 1 0; min-width: 0;">
+                  <h2 id="supplierStockDetailName" style="margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></h2>
+                  <p id="supplierStockDetailContact" class="subtle" style="margin: 0; font-size: 0.82rem;"></p>
+                </div>
+              </div>
+              <div id="supplierStockDetailHint" style="font-size: 0.82rem; color: var(--muted); margin-bottom: 10px;">Tap any item to add it to your order.</div>
+              <div id="supplierStockDetailList"></div>
+            </div>
+
           </div>
         </div>
 
@@ -699,6 +721,6 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-    <script src="app.js?v=26"></script>
+    <script src="app.js?v=29"></script>
   </body>
 </html>
